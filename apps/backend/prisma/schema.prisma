@@ -1,0 +1,85 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String         @id @default(uuid())
+  email        String         @unique
+  name         String
+  avatarUrl    String?
+  coupleAs1    Couple?        @relation("User1")
+  coupleAs2    Couple?        @relation("User2")
+  paidExpenses Expense[]
+  splits       ExpenseSplit[]
+  createdAt    DateTime       @default(now())
+}
+
+model Couple {
+  id         String     @id @default(uuid())
+  user1Id    String     @unique
+  user2Id    String     @unique
+  user1      User       @relation("User1", fields: [user1Id], references: [id])
+  user2      User       @relation("User2", fields: [user2Id], references: [id])
+  inviteCode String     @unique @default(cuid())
+  expenses   Expense[]
+  categories Category[]
+  createdAt  DateTime   @default(now())
+}
+
+model Category {
+  id        String    @id @default(uuid())
+  coupleId  String
+  couple    Couple    @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  name      String
+  color     String    // hex, ej: "#47a74a"
+  icon      String    // emoji, ej: "🛒"
+  expenses  Expense[]
+  createdAt DateTime  @default(now())
+
+  @@unique([coupleId, name])
+}
+
+model Expense {
+  id          String         @id @default(uuid())
+  coupleId    String
+  couple      Couple         @relation(fields: [coupleId], references: [id])
+  paidById    String
+  paidBy      User           @relation(fields: [paidById], references: [id])
+  categoryId  String
+  category    Category       @relation(fields: [categoryId], references: [id])
+  amount      Decimal        @db.Decimal(10, 2)
+  description String
+  date        DateTime
+  splitType   SplitType      @default(EQUAL)
+  splits      ExpenseSplit[]
+  receipts    Receipt[]
+  createdAt   DateTime       @default(now())
+}
+
+model ExpenseSplit {
+  id         String   @id @default(uuid())
+  expenseId  String
+  expense    Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  amountOwed Decimal  @db.Decimal(10, 2)
+  settled    Boolean  @default(false)
+}
+
+model Receipt {
+  id         String   @id @default(uuid())
+  expenseId  String
+  expense    Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  fileUrl    String
+  uploadedAt DateTime @default(now())
+}
+
+enum SplitType {
+  EQUAL
+  CUSTOM
+  FULL
+}
